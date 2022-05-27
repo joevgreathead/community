@@ -10,6 +10,7 @@ load("http.star", "http")
 load("html.star", "html")
 load("encoding/base64.star", "base64")
 load("cache.star", "cache")
+load("schema.star", "schema")
 
 # 16x16
 VERGE_LOGO = base64.decode("""
@@ -58,7 +59,10 @@ CACHE_KEY_TOP_IMG = "verge-dot-com-header"
 SELECTOR_TAGLINE = "span.c-masthead__tagline > a"
 SELECTOR_TOP_IMG = "div.c-masthead__main"
 
-def main():
+def main(config):
+    show_bg = config.bool("show_background")
+    if show_bg == None:
+        show_bg = True
     tagline = cache.get(CACHE_KEY_TAGLINE)
     top_img = cache.get(CACHE_KEY_TOP_IMG)
 
@@ -75,7 +79,7 @@ def main():
             expanded = True,
             main_align = "space_evenly",
             cross_align = "center",
-            children = content(tagline, top_img),
+            children = content(tagline, top_img, show_bg),
         ),
     )
 
@@ -104,40 +108,54 @@ def get_top_img(html_body):
     else:
         return PLACEHOLDER_IMG
 
-def content(value, img):
+def content(value, img, show_bg):
+    content = [image_stack(img, show_bg)]
     if len(value) > 13:
-        return [
-            image_stack(img),
-            render.Marquee(
-                height = 8,
-                width = 64,
-                scroll_direction = "horizontal",
-                child = render.Text(
-                    content = value,
-                ),
-            ),
-        ]
+        content.append(render.Marquee(
+            height = 8,
+            width = 64,
+            scroll_direction = "horizontal",
+            offset_start = 32,
+            child = render.Text(content = value),
+        ))
     else:
-        return [
-            image_stack(img),
-            render.Box(
-                child = render.Text(
-                    height = 8,
-                    content = value,
-                ),
+        content.append(render.Box(
+            child = render.Text(
+                height = 8,
+                content = value,
             ),
-        ]
+        ))
+    return content
 
-def image_stack(img):
-    return render.Stack(
-        children = [
+def image_stack(img, show_bg):
+    children = []
+    if show_bg:
+        children.append(
             render.Padding(
                 pad = (-16, 0, -16, 0),
                 child = render.Image(src = img, width = 96, height = 24),
-            ),
-            render.Box(
-                child = render.Image(src = VERGE_LOGO),
-                height = 24,
+            )
+        )
+    children.append(
+        render.Box(
+            child = render.Image(src = VERGE_LOGO),
+            height = 24,
+        )
+    )
+    return render.Stack(
+        children = children,
+    )
+
+def get_schema():
+    return schema.Schema(
+        version = "1",
+        fields = [
+            schema.Toggle(
+                id = "show_background",
+                name = "Show background",
+                desc = "A toggle to display the header image as the background.",
+                icon = "panorama",
+                default = True,
             ),
         ],
     )
